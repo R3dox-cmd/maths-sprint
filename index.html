@@ -6,7 +6,6 @@
 <title>Maths Sprint Ultimate 🔥</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
   body {
     font-family: 'Press Start 2P', cursive;
     text-align: center;
@@ -18,9 +17,7 @@
     color:#fff;
     overflow-x:hidden;
   }
-
   @keyframes gradientBG {0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
-
   h1 { font-size:2.5em; text-shadow:3px 3px #111827; margin-bottom:20px; }
   #question { font-size:2em; margin:20px auto; opacity:0; transition:opacity 0.5s, transform 0.3s; word-wrap:break-word; word-break:break-word; max-width:90vw;}
   #question.animate{ transform:scale(1.1);}
@@ -30,8 +27,9 @@
   #scoreboard p{ font-size:1.2em; margin:5px; transition:transform 0.3s,color 0.3s;}
   .score-highlight{ transform:scale(1.3); color:#facc15;}
   #tease{ font-size:1em; margin:10px; color:#fbbf24; min-height:1.2em;}
-  @media(max-width:500px){ button{width:80%; margin:8px 0;} #question{font-size:1.6em;} input{width:70%; max-width:150px;} }
-  @media(max-width:400px){ #question{font-size:1.4em;} input{width:80%; max-width:120px;} }
+  #countdown{font-size:2em; color:#f43f5e; min-height:1.5em; margin:10px;}
+  @media(max-width:500px){ button{width:80%; margin:8px 0;} #question{font-size:1.6em;} input{width:70%; max-width:150px;} #countdown{font-size:1.6em;} }
+  @media(max-width:400px){ #question{font-size:1.4em;} input{width:80%; max-width:120px;} #countdown{font-size:1.4em;} }
 </style>
 </head>
 <body>
@@ -40,6 +38,10 @@
 
 <audio id="bgMusic" loop autoplay>
   <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_75c96b7f6d.mp3?filename=happy-background-music-1104.mp3" type="audio/mpeg">
+</audio>
+
+<audio id="victorySound">
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_74a10e87f0.mp3?filename=fun-game-win-sound-11036.mp3" type="audio/mpeg">
 </audio>
 
 <div>
@@ -60,6 +62,7 @@
 </div>
 
 <div id="question">Click Start to begin!</div>
+<div id="countdown"></div>
 <div id="tease"></div>
 <input type="text" id="answer" placeholder="Your answer">
 <br>
@@ -73,11 +76,15 @@
   <p id="score2"></p>
 </div>
 
+<!-- Confetti Script -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
 <script>
 const start=document.getElementById("start");
 const next=document.getElementById("next");
 const restart=document.getElementById("restart");
 const questionEl=document.getElementById("question");
+const countdownEl=document.getElementById("countdown");
 const answerEl=document.getElementById("answer");
 const turnEl=document.getElementById("turn");
 const score1El=document.getElementById("score1");
@@ -86,6 +93,7 @@ const teaseEl=document.getElementById("tease");
 const p1El=document.getElementById("p1");
 const p2El=document.getElementById("p2");
 const bgMusic=document.getElementById("bgMusic");
+const victorySound=document.getElementById("victorySound");
 const difficultyEl=document.getElementById("difficulty");
 
 let currentAnswer=0;
@@ -99,16 +107,16 @@ next.addEventListener("click",checkAnswer);
 restart.addEventListener("click",restartGame);
 
 function startGame(){
-  if(!p1El.value||!p2El.value){ alert("Enter both player names!"); return;}
+  if(!p1El.value || !p2El.value){ alert("Enter both player names!"); return;}
   start.style.display="none"; next.style.display="inline"; bgMusic.play();
-  questionsLeft=10; tieBreaker=false; scores={1:0,2:0};
-  updateScores(); updateTurn(); teaseEl.textContent="";
+  scores={1:0,2:0}; turn=1; questionsLeft=10; tieBreaker=false; teaseEl.textContent="";
+  updateScores(); updateTurn();
   generateQuestion();
 }
 
 function generateQuestion(tie=false){
   const diff=Number(difficultyEl.value);
-  let a,b,op, fraction=false;
+  let a,b,op,fraction=false;
 
   if(diff===0){a=Math.floor(Math.random()*6); b=Math.floor(Math.random()*6); op='+';}
   else if(diff===1){a=Math.floor(Math.random()*21); b=Math.floor(Math.random()*21); op=Math.random()<0.5?'+':'-';}
@@ -117,8 +125,7 @@ function generateQuestion(tie=false){
   else if(diff===4){a=Math.floor(Math.random()*201); b=Math.floor(Math.random()*201); op=['+','-','*','/'][Math.floor(Math.random()*4)];}
   else{a=Math.floor(Math.random()*100001); b=Math.floor(Math.random()*100001); op=['+','-','*','/'][Math.floor(Math.random()*4)];}
 
-  // Randomly add fractions for higher levels
-  if(diff>=3 && Math.random()<0.3){ fraction=true; a=(Math.floor(Math.random()*10)+1)+"/"+(Math.floor(Math.random()*10)+1); b=(Math.floor(Math.random()*10)+1)+"/"+(Math.floor(Math.random()*10)+1); op=['+','-','*','/'][Math.floor(Math.random()*4)];}
+  if(diff>=3 && Math.random()<0.3){ fraction=true; a=(Math.floor(Math.random()*10)+1)+"/"+(Math.floor(Math.random()*10)+1); b=(Math.floor(Math.random()*10)+1)+"/"+(Math.floor(Math.random()*10)+1); op=['+','-','*','/'][Math.floor(Math.random()*4)]; }
 
   if(op==='/' && !fraction) b=b===0?1:b;
   currentAnswer=fraction? evalFraction(a,b,op):evalDecimal(a,b,op);
@@ -129,58 +136,62 @@ function generateQuestion(tie=false){
   answerEl.value=""; answerEl.focus();
 }
 
-function evalDecimal(a,b,op){
-  return Number(eval(`${a}${op}${b}`)).toFixed(2);
-}
-
-// Simple fraction evaluator (converts to decimals)
-function evalFraction(a,b,op){
-  let valA=eval(a.split("/")[0]/a.split("/")[1]);
-  let valB=eval(b.split("/")[0]/b.split("/")[1]);
-  return Number(eval(`${valA}${op}${valB}`)).toFixed(2);
-}
+function evalDecimal(a,b,op){ return Number(eval(`${a}${op}${b}`)).toFixed(2); }
+function evalFraction(a,b,op){ let valA=eval(a.split("/")[0]/a.split("/")[1]); let valB=eval(b.split("/")[0]/b.split("/")[1]); return Number(eval(`${valA}${op}${valB}`)).toFixed(2); }
 
 function checkAnswer(){
-  const userAnswer=Number(answerEl.value);
+  const userInput=answerEl.value.trim();
+  if(userInput===""){ teaseEl.textContent="Enter an answer first!"; return; }
+  const userAnswer=Number(userInput);
   let playerName=turn===1?p1El.value:p2El.value;
+
   if(userAnswer===Number(currentAnswer)){ scores[turn]++; teaseEl.textContent="Correct! Nice one "+playerName+"!"; }
   else { scores[turn]--; teaseEl.textContent="Oops "+playerName+"! Better luck next time 😎"; }
 
   if(!tieBreaker) questionsLeft--;
-  if(questionsLeft<=0 && !tieBreaker){ handleEnd(); return;}
+  if(questionsLeft<=0 && !tieBreaker){ handleEnd(); return; }
 
   highlightScore(); switchTurn(); generateQuestion(tieBreaker); updateTurn(); updateScores();
 }
 
 function handleEnd(){
   if(scores[1]===scores[2]){
-    teaseEl.textContent="It's a tie! Prepare for tie-breaker 🥊"; tieBreaker=true; next.style.display="inline"; questionsLeft=1;
-    setTimeout(()=>{tieBreakerQuestion();},1000);
-  }else{declareWinner();}
+    teaseEl.textContent="It's a tie! Prepare for tie-breaker 🥊"; tieBreaker=true; questionsLeft=1;
+    startCountdown(3, tieBreakerQuestion);
+  } else { declareWinner(); }
+}
+
+function startCountdown(seconds, callback){
+  countdownEl.textContent=seconds;
+  const interval=setInterval(()=>{
+    seconds--;
+    countdownEl.textContent=seconds>0?seconds:"GO!";
+    if(seconds<0){ clearInterval(interval); countdownEl.textContent=""; callback(); }
+  },1000);
 }
 
 function tieBreakerQuestion(){
-  let winnerChoice=false;
   let player1First=confirm(`${p1El.value}, do you want to answer first in the tie-breaker? (OK=Yes, Cancel=No)`);
-  if(player1First){ turn=1; } else{ turn=2; }
+  turn=player1First?1:2;
   generateQuestion(true);
 }
 
 function switchTurn(){ turn=turn===1?2:1; }
-
 function updateTurn(){ turnEl.textContent=`It's ${turn===1?p1El.value:p2El.value}'s turn`; }
-
 function updateScores(){ score1El.textContent=`${p1El.value}: ${scores[1]} pts`; score2El.textContent=`${p2El.value}: ${scores[2]} pts`; }
-
 function highlightScore(){ const el=turn===1?score1El:score2El; el.classList.add("score-highlight"); setTimeout(()=>el.classList.remove("score-highlight"),300); }
 
-function declareWinner(){ next.style.display='none'; restart.style.display='inline';
+function celebrateWinner(){ victorySound.play(); confetti({particleCount:200,spread:70,origin:{y:0.6}}); document.body.style.background="linear-gradient(-45deg, #facc15,#f43f5e,#22d3ee,#10b981)"; setTimeout(()=>{document.body.style.background="linear-gradient(-45deg, #ff416c,#ff4b2b,#1e3a8a,#2563eb)";},1500); }
+
+function declareWinner(){ 
+  next.style.display='none'; restart.style.display='inline';
   let winner; if(scores[1]>scores[2]) winner=p1El.value; else if(scores[2]>scores[1]) winner=p2El.value; else winner='No one! It\'s a tie';
   questionEl.textContent=`Game Over! Winner: ${winner}`;
-  teaseEl.textContent="🎉 Congratulations "+winner+"!";}
-  
-function restartGame(){ scores={1:0,2:0}; turn=1; questionsLeft=10; tieBreaker=false; updateScores(); updateTurn(); teaseEl.textContent=""; generateQuestion(); restart.style.display='none'; next.style.display='inline'; }
+  teaseEl.textContent="🎉 Congratulations "+winner+"!";
+  if(winner!== 'No one! It\'s a tie') celebrateWinner();
+}
 
+function restartGame(){ scores={1:0,2:0}; turn=1; questionsLeft=10; tieBreaker=false; updateScores(); updateTurn(); teaseEl.textContent=""; generateQuestion(); restart.style.display='none'; next.style.display='inline'; }
 </script>
 </body>
 </html>
