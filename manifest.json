@@ -1,0 +1,9 @@
+{
+  "name": "Maths Sprint Ultimate",
+  "short_name": "Maths Sprint",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#2563eb",
+  "theme_color": "#2563eb",
+  "icons": []
+}

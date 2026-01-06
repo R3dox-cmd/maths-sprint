@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Maths Sprint Ultimate</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+
+<style>
+body{
+    margin:0;
+    background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+    font-family:system-ui;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+}
+.app{
+    background:#fff;
+    width:420px;
+    max-width:95%;
+    padding:20px;
+    border-radius:18px;
+    box-shadow:0 25px 50px rgba(0,0,0,.35);
+    text-align:center;
+}
+h1{margin:8px 0}
+select,input,button{
+    width:100%;
+    padding:10px;
+    margin:6px 0;
+    border-radius:8px;
+    border:1px solid #ccc;
+    font-size:15px;
+}
+button{
+    background:#2563eb;
+    color:#fff;
+    border:none;
+    cursor:pointer;
+}
+button:hover{background:#1e40af}
+.stats,.players{
+    display:flex;
+    justify-content:space-between;
+    font-weight:600;
+    margin:6px 0;
+}
+.question{
+    font-size:26px;
+    margin:14px 0;
+}
+.feedback{
+    height:22px;
+    font-weight:bold;
+}
+.hidden{display:none}
+.leaderboard{
+    text-align:left;
+    font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+<h1>🔥 Maths Sprint</h1>
+
+<select id="mode">
+<option value="single">Single Player</option>
+<option value="multi">2 Player (Local)</option>
+<option value="class">Classroom Mode</option>
+</select>
+
+<select id="level">
+<option value="easy">Easy</option>
+<option value="medium">Medium</option>
+<option value="hard">Hard</option>
+</select>
+
+<input id="playerName" placeholder="Your Name">
+
+<div class="stats">
+<span>⏱ <span id="time">60</span>s</span>
+<span>⭐ <span id="score">0</span></span>
+</div>
+
+<div class="players hidden" id="players">
+<span>P1: <span id="s1">0</span></span>
+<span>P2: <span id="s2">0</span></span>
+</div>
+
+<div id="turn"></div>
+<div class="question" id="question">Press Start</div>
+
+<input type="number" id="answer" placeholder="Answer" disabled>
+
+<div class="feedback" id="feedback"></div>
+
+<button id="start">Start</button>
+<button id="next" class="hidden">Next</button>
+<button id="restart" class="hidden">Restart</button>
+
+<hr>
+<h3>🏆 Leaderboard</h3>
+<div class="leaderboard" id="leaderboard"></div>
+</div>
+
+<audio id="ok" src="https://cdn.pixabay.com/audio/2022/03/15/audio_75c96b7f6d.mp3"></audio>
+<audio id="no" src="https://cdn.pixabay.com/audio/2022/03/15/audio_38a2ed8c90.mp3"></audio>
+
+<script>
+let time=60,timer,correct,score=0,turn=0;
+let scores=[0,0];
+let lb=JSON.parse(localStorage.getItem("mathsLB")||"[]");
+
+const q=document.getElementById("question");
+const ans=document.getElementById("answer");
+
+function r(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+
+function gen(){
+    let lvl=level.value,a,b,ops;
+    if(lvl==="easy"){a=r(1,10);b=r(1,10);ops=["+","-"];}
+    if(lvl==="medium"){a=r(5,20);b=r(5,20);ops=["+","-","*"];}
+    if(lvl==="hard"){a=r(10,50);b=r(2,15);ops=["+","-","*","/"];}
+    let op=ops[r(0,ops.length-1)];
+    if(op==="/"){a=a*b;correct=a/b;}
+    else correct=eval(a+op+b);
+    q.textContent=`${a} ${op} ${b}`;
+    ans.value="";
+    ans.disabled=false;
+}
+
+function saveLB(name,score){
+    lb.push({name,score});
+    lb.sort((a,b)=>b.score-a.score);
+    lb=lb.slice(0,10);
+    localStorage.setItem("mathsLB",JSON.stringify(lb));
+    renderLB();
+}
+
+function renderLB(){
+    leaderboard.innerHTML=lb.map((x,i)=>`${i+1}. ${x.name} — ${x.score}`).join("<br>");
+}
+renderLB();
+
+start.onclick=()=>{
+    score=0;turn=0;scores=[0,0];
+    document.getElementById("score").textContent=0;
+    players.classList.toggle("hidden",mode.value==="single");
+    start.classList.add("hidden");
+    next.classList.remove("hidden");
+    time=60;timeEl.textContent=time;
+    gen();
+    timer=setInterval(()=>{
+        time--;timeEl.textContent=time;
+        if(time<=0) end();
+    },1000);
+};
+
+next.onclick=()=>{
+    if(ans.value==="")return;
+    let okNow=Number(ans.value)===correct;
+    (okNow?ok:no).play();
+    if(mode.value==="single"){
+        if(okNow){document.getElementById("score").textContent=++score;}
+    }else{
+        if(okNow){
+            scores[turn]++;
+            document.getElementById("s"+(turn+1)).textContent=scores[turn];
+        }
+        turn=1-turn;
+        document.getElementById("turn").textContent=`Player ${turn+1}'s Turn`;
+    }
+    gen();
+};
+
+function end(){
+    clearInterval(timer);
+    ans.disabled=true;
+    next.classList.add("hidden");
+    restart.classList.remove("hidden");
+    let name=playerName.value||"Player";
+    let final=mode.value==="single"?score:Math.max(...scores);
+    saveLB(name,final);
+    q.textContent="Game Over!";
+}
+
+restart.onclick=()=>location.reload();
+
+if("serviceWorker" in navigator){
+    navigator.serviceWorker.register("sw.js");
+}
+</script>
+
+</body>
+</html>
