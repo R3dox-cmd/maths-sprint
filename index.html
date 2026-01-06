@@ -44,6 +44,16 @@
   <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_74a10e87f0.mp3?filename=fun-game-win-sound-11036.mp3" type="audio/mpeg">
 </audio>
 
+<!-- Mode Selection -->
+<div>
+  <label>Select Mode: </label>
+  <select id="modeSelect">
+    <option value="single">Offline Single Player</option>
+    <option value="localMulti">Offline Multiplayer (Same Device)</option>
+    <option value="onlineMulti">Online Multiplayer</option>
+  </select>
+</div>
+
 <div>
   Player 1: <input type="text" id="p1" placeholder="Player 1">
   Player 2: <input type="text" id="p2" placeholder="Player 2">
@@ -76,7 +86,6 @@
   <p id="score2"></p>
 </div>
 
-<!-- Confetti Script -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
 
 <script>
@@ -95,19 +104,29 @@ const p2El=document.getElementById("p2");
 const bgMusic=document.getElementById("bgMusic");
 const victorySound=document.getElementById("victorySound");
 const difficultyEl=document.getElementById("difficulty");
+const modeSelect=document.getElementById("modeSelect");
 
 let currentAnswer=0;
 let turn=1;
 let scores={1:0,2:0};
 let questionsLeft=10;
 let tieBreaker=false;
+let gameMode="single";
 
 start.addEventListener("click",startGame);
 next.addEventListener("click",checkAnswer);
 restart.addEventListener("click",restartGame);
 
 function startGame(){
-  if(!p1El.value || !p2El.value){ alert("Enter both player names!"); return;}
+  gameMode = modeSelect.value;
+
+  if(gameMode==="localMulti" || gameMode==="onlineMulti"){
+    if(!p1El.value || !p2El.value){ alert("Enter both player names!"); return;}
+  } else if(gameMode==="single"){
+    if(!p1El.value){ alert("Enter your name!"); return;}
+    p2El.value = "Computer";
+  }
+
   start.style.display="none"; next.style.display="inline"; bgMusic.play();
   scores={1:0,2:0}; turn=1; questionsLeft=10; tieBreaker=false; teaseEl.textContent="";
   updateScores(); updateTurn();
@@ -171,13 +190,13 @@ function startCountdown(seconds, callback){
 }
 
 function tieBreakerQuestion(){
-  let player1First=confirm(`${p1El.value}, do you want to answer first in the tie-breaker? (OK=Yes, Cancel=No)`);
-  turn=player1First?1:2;
+  if(gameMode==="single"){ turn=1; }
+  else{ let player1First=confirm(`${p1El.value}, do you want to answer first in the tie-breaker? (OK=Yes, Cancel=No)`); turn=player1First?1:2; }
   generateQuestion(true);
 }
 
-function switchTurn(){ turn=turn===1?2:1; }
-function updateTurn(){ turnEl.textContent=`It's ${turn===1?p1El.value:p2El.value}'s turn`; }
+function switchTurn(){ if(gameMode!=="single") turn=turn===1?2:1; }
+function updateTurn(){ if(gameMode==="single") turnEl.textContent = `Your turn, ${p1El.value}`; else turnEl.textContent=`It's ${turn===1?p1El.value:p2El.value}'s turn`; }
 function updateScores(){ score1El.textContent=`${p1El.value}: ${scores[1]} pts`; score2El.textContent=`${p2El.value}: ${scores[2]} pts`; }
 function highlightScore(){ const el=turn===1?score1El:score2El; el.classList.add("score-highlight"); setTimeout(()=>el.classList.remove("score-highlight"),300); }
 
